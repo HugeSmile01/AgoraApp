@@ -4,6 +4,7 @@
  */
 
 import { Colors } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { deleteNonConformance, getAllNonConformances, saveNonConformance } from '@/lib/db';
 import { createId } from '@/lib/id';
 import React, { useCallback, useEffect, useState } from 'react';
