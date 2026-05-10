@@ -3,17 +3,23 @@
  * Mobile port of ExpensesPage.jsx
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { Colors } from '@/constants/theme';
+import { useTier } from '@/hooks/useTier';
+import { getBusinessType } from '@/lib/constants';
+import { addToSyncQueue, deleteExpense, getAllExpenses, getProfile, saveExpense } from '@/lib/db';
+import { createId } from '@/lib/id';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  Modal, StyleSheet, Alert, useColorScheme, ScrollView,
+    Alert,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text, TextInput, TouchableOpacity,
+    useColorScheme,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { v4 as uuidv4 } from 'uuid';
-import { getAllExpenses, saveExpense, deleteExpense, addToSyncQueue, getProfile } from '@/lib/db';
-import { getBusinessType } from '@/lib/constants';
-import { useTier } from '@/hooks/useTier';
-import { Colors } from '@/constants/theme';
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
@@ -58,7 +64,7 @@ export default function ExpensesScreen() {
     if (!form.amount) { Alert.alert('Required', 'Amount is required.'); return; }
     const record = {
       ...form,
-      id: editing?.id ?? uuidv4(),
+      id: editing?.id ?? createId(),
       amount: Number(form.amount),
       type: 'expense',
       created_at: editing?.created_at ?? new Date().toISOString(),

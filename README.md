@@ -88,8 +88,8 @@ npm install
 ```
 
 ### Configure (optional)
-Copy .env.example to .env and fill in Supabase credentials.
-Leave blank for Libre mode (offline only).
+Copy `.env.example` to `.env` and fill in Supabase credentials.
+Leave them blank for Libre mode (offline only).
 
 ### Run
 ```bash
@@ -126,3 +126,9 @@ eas login
 eas build --platform ios
 eas build --platform android
 ```
+
+## Security
+
+- Use `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` for client-safe cloud access.
+- Keep private service keys out of the app bundle.
+- The AI Advisor runs locally by default, so no AI API key is needed on the client.

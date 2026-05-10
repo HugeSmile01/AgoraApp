@@ -3,16 +3,22 @@
  * Mobile port of CustomersPage.jsx
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { Colors } from '@/constants/theme';
+import { useTier } from '@/hooks/useTier';
+import { addToSyncQueue, deleteCustomer, getAllCustomers, getAllTransactions, saveCustomer } from '@/lib/db';
+import { createId } from '@/lib/id';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  Modal, StyleSheet, Alert, useColorScheme, ScrollView,
+    Alert,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text, TextInput, TouchableOpacity,
+    useColorScheme,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { v4 as uuidv4 } from 'uuid';
-import { getAllCustomers, saveCustomer, deleteCustomer, getAllTransactions, addToSyncQueue } from '@/lib/db';
-import { useTier } from '@/hooks/useTier';
-import { Colors } from '@/constants/theme';
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
@@ -64,7 +70,7 @@ export default function CustomersScreen() {
 
   async function save() {
     if (!form.name?.trim()) { Alert.alert('Required', 'Customer name is required.'); return; }
-    const record = { ...form, id: editing?.id ?? uuidv4(), updated_at: new Date().toISOString() };
+    const record = { ...form, id: editing?.id ?? createId(), updated_at: new Date().toISOString() };
     await saveCustomer(record);
     if (canSync) await addToSyncQueue({ table_name: 'customers', record_id: record.id, operation: 'upsert', payload: record });
     setModalVisible(false);

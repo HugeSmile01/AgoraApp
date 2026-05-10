@@ -9,8 +9,8 @@
  * import from '@/lib/db' continue to work unchanged.
  */
 
-import { db as store, storage } from './storage';
-import { v4 as uuidv4 } from 'uuid';
+import { createId } from '@/lib/id';
+import { db as store } from './storage';
 
 // ── Store names ─────────────────────────────────────────────────────────────
 const STORES = {
@@ -46,7 +46,7 @@ const STORES = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function now() { return new Date().toISOString(); }
-function newId() { return uuidv4(); }
+function newId() { return createId(); }
 
 // ── Profile ──────────────────────────────────────────────────────────────────
 export async function getProfile() {

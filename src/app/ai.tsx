@@ -1,97 +1,91 @@
 /**
  * ai.tsx — AI Advisor Screen
- * Mobile port of AIAdvisorPage.jsx
+ * Free local-first business coach with offline conversation history.
  */
 
+import { Colors } from '@/constants/theme';
+import { getFinancialSummary } from '@/lib/financials';
+import { clearAIHistory, getAIHistory } from '@/lib/db';
+import { sendAIMessage } from '@/lib/ai';
+import { createId } from '@/lib/id';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, KeyboardAvoidingView, Platform, useColorScheme, ActivityIndicator,
+    ActivityIndicator,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useColorScheme,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getAIHistory, saveAIMessage, clearAIHistory } from '@/lib/db';
-import { useTier } from '@/hooks/useTier';
-import { useRouter } from 'expo-router';
-import { Colors } from '@/constants/theme';
-import { v4 as uuidv4 } from 'uuid';
-
-const SYSTEM_PROMPT = `You are Agora AI, a friendly business advisor for Filipino small and micro-businesses (sari-sari stores, carinderias, salons, bakeries, pharmacies, etc.). 
-Give practical, actionable advice in simple English or Filipino. Focus on profitability, cash flow, inventory, and customer management.
-Keep responses concise and mobile-friendly (short paragraphs).`;
+import { getProfile } from '@/lib/db';
 
 export default function AIAdvisorScreen() {
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
-  const { tier } = useTier();
-  const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
 
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<any>(null);
+  const [financialSummary, setFinancialSummary] = useState<any>(null);
+  const [contextReady, setContextReady] = useState(false);
 
   useEffect(() => {
-    getAIHistory().then(history => {
-      setMessages(history.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
-    });
-  }, []);
+    (async () => {
+      const now = new Date();
+      const [history, prof, summary] = await Promise.all([
+        getAIHistory(),
+        getProfile(),
+        getFinancialSummary(now.getFullYear(), now.getMonth() + 1),
+      ]);
 
-  // Pro gate
-  if (tier !== 'pro') {
-    return (
-      <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
-        <View style={styles.gateWrap}>
-          <Text style={styles.gateEmoji}>🤖</Text>
-          <Text style={[styles.gateTitle, { color: colors.text }]}>AI Advisor</Text>
-          <Text style={[styles.gateDesc, { color: colors.textSecondary }]}>
-            Get personalised business insights, forecasts, and actionable recommendations powered by Claude AI.
-          </Text>
-          <TouchableOpacity style={styles.upgradeBtn} onPress={() => router.push('/upgrade')}>
-            <Text style={styles.upgradeBtnText}>Upgrade to Pro — ₱799/mo</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
+      setMessages(history.sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()));
+      setProfile(prof);
+      setFinancialSummary(summary);
+      setContextReady(true);
+    })();
+  }, []);
 
   async function sendMessage() {
     const text = input.trim();
     if (!text || loading) return;
     setInput('');
 
-    const userMsg = { id: uuidv4(), role: 'user', content: text, created_at: new Date().toISOString() };
+    const userMsg = { id: createId(), role: 'user', content: text, created_at: new Date().toISOString() };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
-    await saveAIMessage(userMsg);
 
     // Scroll to end
     setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
 
     setLoading(true);
     try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          system: SYSTEM_PROMPT,
-          messages: updatedMessages
-            .filter((m: any) => m.role === 'user' || m.role === 'assistant')
-            .map((m: any) => ({ role: m.role, content: m.content })),
-        }),
-      });
+      let advisorProfile = profile;
+      let advisorSummary = financialSummary;
+      if (!contextReady) {
+        const now = new Date();
+        [advisorProfile, advisorSummary] = await Promise.all([
+          getProfile(),
+          getFinancialSummary(now.getFullYear(), now.getMonth() + 1),
+        ]);
+        setProfile(advisorProfile);
+        setFinancialSummary(advisorSummary);
+      }
 
-      const data = await response.json();
-      const replyText = data.content?.[0]?.text ?? 'Sorry, I could not generate a response.';
+      const replyText = await sendAIMessage(text, advisorProfile, advisorSummary);
 
-      const assistantMsg = { id: uuidv4(), role: 'assistant', content: replyText, created_at: new Date().toISOString() };
+      const assistantMsg = { id: createId(), role: 'assistant', content: replyText, created_at: new Date().toISOString() };
       const newMessages = [...updatedMessages, assistantMsg];
       setMessages(newMessages);
-      await saveAIMessage(assistantMsg);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
-      const errMsg = { id: uuidv4(), role: 'assistant', content: 'Connection error. Please try again.', created_at: new Date().toISOString() };
+      const errMsg = { id: createId(), role: 'assistant', content: 'I could not build a suggestion right now. Please try again.', created_at: new Date().toISOString() };
       setMessages(p => [...p, errMsg]);
     } finally {
       setLoading(false);
@@ -108,12 +102,20 @@ export default function AIAdvisorScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>AI Advisor</Text>
+        <View>
+          <Text style={[styles.title, { color: colors.text }]}>AI Advisor</Text>
+          <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Free, local-first coaching with no API key required.</Text>
+        </View>
         {messages.length > 0 && (
-          <TouchableOpacity onPress={async () => { await clearAIHistory(); setMessages([]); }}>
-            <Text style={{ color: '#EF4444', fontSize: 13 }}>Clear</Text>
+          <TouchableOpacity style={[styles.clearBtn, { backgroundColor: colors.backgroundElement }]} onPress={async () => { await clearAIHistory(); setMessages([]); }}>
+            <Text style={{ color: colors.textSecondary, fontSize: 13, fontWeight: '600' }}>Clear</Text>
           </TouchableOpacity>
         )}
+      </View>
+
+      <View style={[styles.heroCard, { backgroundColor: colors.backgroundElement }]}> 
+        <Text style={[styles.heroTitle, { color: colors.text }]}>Ask about sales, cash flow, inventory, or utang.</Text>
+        <Text style={[styles.heroText, { color: colors.textSecondary }]}>The advice is generated from the data already on your device. Cloud sync is still available if you need multi-device access.</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -190,22 +192,31 @@ export default function AIAdvisorScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 12,
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
+    paddingHorizontal: 20, paddingTop: 10, paddingBottom: 12,
   },
   title: { fontSize: 22, fontWeight: '700' },
-  gateWrap: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  gateEmoji: { fontSize: 56, marginBottom: 16 },
-  gateTitle: { fontSize: 24, fontWeight: '700', marginBottom: 12, textAlign: 'center' },
-  gateDesc: { fontSize: 15, textAlign: 'center', lineHeight: 22, marginBottom: 28 },
-  upgradeBtn: { backgroundColor: '#7C3AED', borderRadius: 12, paddingVertical: 14, paddingHorizontal: 28 },
-  upgradeBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  subtitle: { fontSize: 12, marginTop: 4 },
+  clearBtn: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 8 },
+  heroCard: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+  heroTitle: { fontSize: 16, fontWeight: '700', marginBottom: 6, lineHeight: 22 },
+  heroText: { fontSize: 13, lineHeight: 19 },
   starterWrap: { alignItems: 'center', paddingTop: 24 },
   starterEmoji: { fontSize: 40, marginBottom: 12 },
   starterTitle: { fontSize: 16, fontWeight: '600', marginBottom: 16, textAlign: 'center' },
-  starterBtn: { borderRadius: 10, padding: 14, marginBottom: 8, alignSelf: 'stretch' },
+  starterBtn: { borderRadius: 14, padding: 14, marginBottom: 8, alignSelf: 'stretch' },
   starterBtnText: { fontSize: 14 },
-  bubble: { maxWidth: '85%', borderRadius: 16, padding: 14, marginBottom: 8 },
+  bubble: { maxWidth: '85%', borderRadius: 18, padding: 14, marginBottom: 8 },
   userBubble: { backgroundColor: '#1A56A0', alignSelf: 'flex-end', borderBottomRightRadius: 4 },
   aiBubble: { alignSelf: 'flex-start', borderBottomLeftRadius: 4 },
   bubbleText: { fontSize: 15, lineHeight: 22 },

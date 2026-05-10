@@ -79,9 +79,9 @@ export const TIERS = {
 };
 
 export const TIER_FEATURES = {
-  libre: ['pos','inventory','dashboard','expenses','alerts'],
-  cloud: ['pos','inventory','dashboard','expenses','alerts','cloud_sync','multi_device','exports','team_basic'],
-  pro:   ['pos','inventory','dashboard','expenses','alerts','cloud_sync','multi_device','exports','team_full','ai_advisor','ai_forecast','tax_estimation','priority_support'],
+  libre: ['pos','inventory','dashboard','expenses','alerts','ai_advisor'],
+  cloud: ['pos','inventory','dashboard','expenses','alerts','ai_advisor','cloud_sync','multi_device','exports','team_basic'],
+  pro:   ['pos','inventory','dashboard','expenses','alerts','ai_advisor','cloud_sync','multi_device','exports','team_full','ai_forecast','tax_estimation','priority_support'],
 };
 
 export function hasFeature(userTier, feature) {
@@ -91,7 +91,6 @@ export function hasFeature(userTier, feature) {
 export const UPGRADE_TRIGGERS = {
   device_loss:    { after_days: 14, feature: 'cloud_sync', tier: 'cloud' },
   remote_access:  { after_logins: 10, feature: 'multi_device', tier: 'cloud' },
-  ai_teaser:      { after_transactions: 30, feature: 'ai_advisor', tier: 'pro' },
   export_attempt: { on_action: 'export', feature: 'exports', tier: 'cloud' },
   milestone_100:  { at_transactions: 100, feature: 'cloud_sync', tier: 'cloud' },
 };

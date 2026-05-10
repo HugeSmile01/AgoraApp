@@ -6,16 +6,19 @@
  * the main tab bar.
  */
 
-import React from 'react';
-import {
-  View, Text, TouchableOpacity, StyleSheet,
-  ScrollView, useColorScheme,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { Colors } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useTier } from '@/hooks/useTier';
-import { Colors } from '@/constants/theme';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import {
+    ScrollView,
+    StyleSheet,
+    Text, TouchableOpacity,
+    useColorScheme,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface NavItem {
   label: string;
@@ -32,7 +35,7 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
     items: [
       { label: 'Reports', description: 'Sales & profit reports', route: '/reports', emoji: '📊', color: '#7C3AED' },
       { label: 'Customers / Utang', description: 'Customer accounts & credit', route: '/customers', emoji: '👥', color: '#0D9488' },
-      { label: 'AI Advisor', description: 'Business insights powered by AI', route: '/ai', emoji: '🤖', color: '#1A56A0', proOnly: true },
+      { label: 'AI Advisor', description: 'Free local business insights', route: '/ai', emoji: '🤖', color: '#1A56A0' },
     ],
   },
   {
@@ -105,11 +108,6 @@ export default function MoreScreen() {
                 <View style={{ flex: 1 }}>
                   <View style={styles.navLabelRow}>
                     <Text style={[styles.navLabel, { color: colors.text }]}>{item.label}</Text>
-                    {item.proOnly && tier !== 'pro' && (
-                      <View style={styles.proBadge}>
-                        <Text style={styles.proBadgeText}>PRO</Text>
-                      </View>
-                    )}
                   </View>
                   <Text style={[styles.navDesc, { color: colors.textSecondary }]}>
                     {item.description}

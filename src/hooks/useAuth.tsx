@@ -15,7 +15,7 @@ const LOCAL_USER_KEY = 'agora_local_user';
 
 interface User {
   id: string;
-  email: string;
+  email?: string;
   tier?: string;
 }
 

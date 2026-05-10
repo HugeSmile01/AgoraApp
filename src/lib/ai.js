@@ -1,31 +1,107 @@
 // src/lib/ai.js
-// OpenRouter API integration for the AI Business Advisor.
+// Free, local-first AI advisor for Agora Business OS.
 //
 // Security model:
-//   • PRODUCTION: All requests are proxied through the `ai-chat` Supabase Edge Function.
-//     The OPENROUTER_API_KEY lives only in the server-side secret store — never in the browser.
-//   • DEVELOPMENT FALLBACK: If VITE_OPENROUTER_API_KEY is set in .env.local and no Supabase
-//     project URL is configured, the browser calls OpenRouter directly for faster local dev.
-//     Never commit VITE_OPENROUTER_API_KEY to source control or deploy it to production.
+//   • No client-side AI API keys are required.
+//   • Advice is generated locally from the app's own financial data.
+//   • Cloud features remain optional and are isolated to Supabase sync.
 
-import { getAIHistory, saveAIMessage, clearAIHistory } from './db';
+import { createId } from '@/lib/id';
 import { BUSINESS_TYPES } from './constants';
-import { v4 as uuidv4 } from 'uuid';
-import { supabase, isSupabaseConfigured } from './supabase';
+import { clearAIHistory, getAIHistory, saveAIMessage } from './db';
 
-export const OPENROUTER_FREE_MODELS = [
-  { id: 'qwen/qwen3-32b:free',                          label: 'Helios-32B' },
-  { id: 'qwen/qwen3-235b-a22b:free',                    label: 'Titan-235B' },
-  { id: 'meta-llama/llama-4-maverick:free',              label: 'Maverick-X' },
-  { id: 'google/gemma-3-27b-it:free',                    label: 'Prism-27B' },
-  { id: 'mistralai/mistral-small-3.1-24b-instruct:free', label: 'Sirocco-24B' },
-  { id: 'deepseek/deepseek-chat-v3-0324:free',           label: 'Abyss-V3' },
-  { id: 'meta-llama/llama-3.3-70b-instruct:free',        label: 'Apex-70B' },
-  { id: 'google/gemma-3-12b-it:free',                    label: 'Nova-12B' },
-];
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('en-PH', {
+    style: 'currency',
+    currency: 'PHP',
+    maximumFractionDigits: 0,
+  }).format(Number(amount || 0));
+}
 
-const DEFAULT_MODEL = OPENROUTER_FREE_MODELS[0].id;
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
+function normalizeText(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function getBusinessLabel(profile) {
+  const businessType = BUSINESS_TYPES[profile?.business_type] || BUSINESS_TYPES.general;
+  return profile?.business_name || businessType.label || 'your business';
+}
+
+function getExpenseLeader(financialSummary) {
+  const categories = financialSummary?.expenseByCategory || [];
+  if (!categories.length) return null;
+  return [...categories].sort((a, b) => Number(b.total || 0) - Number(a.total || 0))[0];
+}
+
+function getPerformanceSignals(financialSummary) {
+  const sales = Number(financialSummary?.monthSales || 0);
+  const expenses = Number(financialSummary?.monthExpenses || 0);
+  const profit = sales - expenses;
+  const margin = sales > 0 ? (profit / sales) * 100 : 0;
+  const topItems = Array.isArray(financialSummary?.topItems) ? financialSummary.topItems : [];
+  const lowData = Number(financialSummary?.dataAgeDays || 0) < 7;
+
+  return {
+    sales,
+    expenses,
+    profit,
+    margin,
+    topItems,
+    lowData,
+  };
+}
+
+function buildActionLine(intent, signals, financialSummary) {
+  const topExpense = getExpenseLeader(financialSummary);
+  const topItem = signals.topItems[0];
+
+  if (intent === 'sales') {
+    return topItem
+      ? `Today, feature ${topItem} near the cashier or menu so it sells faster.`
+      : 'Today, highlight your best-selling item with a small sign or bundle offer.';
+  }
+
+  if (intent === 'expenses') {
+    return topExpense
+      ? `Today, review ${topExpense.category} first and cut one non-essential cost there.`
+      : 'Today, check one recurring expense and remove anything that is not driving sales.';
+  }
+
+  if (intent === 'cashflow') {
+    return 'Today, separate your daily sales cash from personal spending before the day ends.';
+  }
+
+  if (intent === 'inventory') {
+    return topItem
+      ? `Today, restock ${topItem} before it sells out.`
+      : 'Today, count the top 10 items and mark anything running low.';
+  }
+
+  if (intent === 'utang') {
+    return 'Today, list every credit customer and follow up on the oldest unpaid balance first.';
+  }
+
+  if (signals.margin < 10 && signals.sales > 0) {
+    return 'Today, raise prices on one fast-moving item by a small amount and watch the effect.';
+  }
+
+  if (signals.margin >= 10) {
+    return 'Today, keep the same selling rhythm and record which items bring the best margin.';
+  }
+
+  return "Today, record every sale and expense so tomorrow's advice becomes sharper.";
+}
+
+function detectIntent(message) {
+  const text = normalizeText(message);
+  if (!text) return 'general';
+  if (/(utang|credit|collect|receiv|unpaid)/.test(text)) return 'utang';
+  if (/(stock|inventory|restock|supply|low stock)/.test(text)) return 'inventory';
+  if (/(expense|cost|reduce|spend|save)/.test(text)) return 'expenses';
+  if (/(cash flow|cashflow|money|profit|margin|earn)/.test(text)) return 'cashflow';
+  if (/(sale|sell|customer|product|item|menu|promote)/.test(text)) return 'sales';
+  return 'general';
+}
 
 function buildSystemPrompt(profile, financialSummary) {
   const biz = BUSINESS_TYPES[profile.business_type];
@@ -49,93 +125,67 @@ Always end responses with one specific actionable tip the owner can do TODAY.`;
 
 /**
  * Send a message to the AI and return the assistant's reply.
- * Routes through the Supabase Edge Function proxy in production.
+ * Generates a free local response from the app's own financial data.
  */
-export async function sendAIMessage(userMessage, profile, financialSummary, selectedModel) {
-  const model = selectedModel || DEFAULT_MODEL;
+export async function sendAIMessage(userMessage, profile, financialSummary) {
   const history = await getAIHistory();
+  const signals = getPerformanceSignals(financialSummary);
+  const intent = detectIntent(userMessage);
+  const businessLabel = getBusinessLabel(profile);
+  const recentContext = history
+    .filter((item) => item?.role === 'assistant')
+    .slice(-1)[0]?.content;
 
-  const messages = [
-    { role: 'system', content: buildSystemPrompt(profile, financialSummary) },
-    ...history
-      .filter((h) => h?.role === 'user' || h?.role === 'assistant')
-      .map((h) => ({ role: h.role, content: h.content })),
-    { role: 'user', content: userMessage },
-  ];
+  const summaryLine = signals.sales > 0
+    ? `${businessLabel} made ${formatCurrency(signals.sales)} in sales and ${formatCurrency(signals.expenses)} in expenses this month.`
+    : `${businessLabel} is ready for its first sales record. Start by logging today's revenue and expenses.`;
 
-  let reply;
+  const statusLine = signals.sales > 0
+    ? `Gross profit is ${formatCurrency(signals.profit)} with an estimated margin of ${Math.max(0, signals.margin).toFixed(1)}%.`
+    : 'Once you record a few sales, I can give you sharper recommendations.';
 
-  // ── Production path: proxy through Edge Function ──
-  if (isSupabaseConfigured()) {
-    const { data: { session } } = await supabase.auth.getSession();
+  const topItemLine = signals.topItems.length > 0
+    ? `Top item: ${signals.topItems.join(', ')}.`
+    : 'No top items yet, so the app will focus on margins and expense control.';
 
-    const response = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type':  'application/json',
-          'Authorization': `Bearer ${session?.access_token ?? ''}`,
-        },
-        body: JSON.stringify({ messages, model, max_tokens: 1024 }),
-      }
-    );
+  const expenseLine = getExpenseLeader(financialSummary)
+    ? `Largest expense bucket: ${getExpenseLeader(financialSummary).category}.`
+    : 'No expense category is dominating yet.';
 
-    if (!response.ok) {
-      let message = 'AI request failed';
-      try { const err = await response.json(); message = err?.error || message; } catch { /* ignore */ }
-      throw new Error(message);
-    }
+  const intentLines = {
+    sales: 'You asked about sales growth, so I am focusing on your best movers and conversion hints.',
+    expenses: 'You asked about costs, so I am focusing on spend control and waste reduction.',
+    cashflow: 'You asked about cash flow, so I am focusing on money movement and profit retention.',
+    inventory: 'You asked about inventory, so I am focusing on stock availability and restocking.',
+    utang: 'You asked about utang, so I am focusing on collections and unpaid balances.',
+    general: 'I am using your latest business data to keep the advice practical and local.',
+  };
 
-    const data = await response.json();
-    reply = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
-  } else {
-    // ── Development fallback: direct OpenRouter call ──
-    const apiKey = import.meta.env.VITE_OPENROUTER_API_KEY;
-    if (!apiKey) {
-      throw new Error('OpenRouter API key not configured. Add VITE_OPENROUTER_API_KEY to your .env.local (for local dev only)');
-    }
-
-    const response = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        ...(import.meta.env.VITE_OPENROUTER_APP_URL ? { 'HTTP-Referer': import.meta.env.VITE_OPENROUTER_APP_URL } : {}),
-        ...(import.meta.env.VITE_OPENROUTER_APP_NAME ? { 'X-Title': import.meta.env.VITE_OPENROUTER_APP_NAME } : {}),
-      },
-      body: JSON.stringify({ model, messages, max_tokens: 1024, temperature: 0.5 }),
-    });
-
-    if (!response.ok) {
-      let message = 'AI request failed';
-      try {
-        const err = await response.json();
-        message = err.error?.message || message;
-      } catch {
-        const raw = await response.text();
-        if (raw) message = raw;
-      }
-      throw new Error(message);
-    }
-
-    const data = await response.json();
-    reply = data.choices?.[0]?.message?.content || 'Sorry, I could not generate a response.';
-  }
+  const reply = [
+    `Here is a simple update for ${businessLabel}.`,
+    summaryLine,
+    statusLine,
+    topItemLine,
+    expenseLine,
+    intentLines[intent],
+    recentContext ? `Previous note: ${recentContext}` : null,
+    buildActionLine(intent, signals, financialSummary),
+  ].filter(Boolean).join('\n\n');
 
   // Persist conversation to local IndexedDB history
-  await saveAIMessage({ id: uuidv4(), role: 'user',      content: userMessage, created_at: new Date().toISOString() });
-  await saveAIMessage({ id: uuidv4(), role: 'assistant', content: reply,       created_at: new Date().toISOString() });
+  await saveAIMessage({ id: createId(), role: 'user',      content: userMessage, created_at: new Date().toISOString() });
+  await saveAIMessage({ id: createId(), role: 'assistant', content: reply,       created_at: new Date().toISOString() });
 
   return reply;
 }
 
 export async function getInsightTeaser(financialSummary) {
+  const signals = getPerformanceSignals(financialSummary);
   const teasers = [
-    financialSummary.monthSales > 0 && `Your sales pattern suggests a growth opportunity on weekends`,
-    financialSummary.topItems?.length > 0 && `${financialSummary.topItems[0]} could be priced higher based on demand`,
-    `Your expense-to-revenue ratio has a specific recommendation`,
-    `There's a pricing adjustment that could increase your profit by 15-20%`,
+    signals.sales > 0 && `Sales are active. A small bundle or add-on offer could lift profit today.`,
+    signals.topItems?.length > 0 && `${signals.topItems[0]} is a strong seller. Keep it visible and easy to find.`,
+    getExpenseLeader(financialSummary) && `Your biggest expense is ${getExpenseLeader(financialSummary).category}. There may be room to trim it.`,
+    signals.margin > 0 && `Your estimated margin is ${Math.max(0, signals.margin).toFixed(1)}%. Track which items beat that average.`,
   ].filter(Boolean);
   return teasers[Math.floor(Math.random() * teasers.length)] || 'New business insights are ready for you';
 }

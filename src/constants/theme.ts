@@ -20,6 +20,13 @@ export const Colors = {
     backgroundSelected: '#334155',
     textSecondary: '#94A3B8',
   },
+  unspecified: {
+    text: '#0F172A',
+    background: '#F8FAFC',
+    backgroundElement: '#FFFFFF',
+    backgroundSelected: '#E2E8F0',
+    textSecondary: '#64748B',
+  },
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;

@@ -3,13 +3,17 @@
  * Mobile port of UpgradePage.jsx
  */
 
-import React from 'react';
-import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet, useColorScheme, Linking,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 import { useTier } from '@/hooks/useTier';
+import React from 'react';
+import {
+    Linking,
+    ScrollView, StyleSheet,
+    Text, TouchableOpacity,
+    useColorScheme,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PLANS = [
   {
@@ -22,9 +26,9 @@ const PLANS = [
       '✓ Inventory management',
       '✓ Expense tracking',
       '✓ Basic reports',
+      '✓ AI Advisor (free, local)',
       '✓ Offline-first (no internet needed)',
       '✗ Cloud sync',
-      '✗ AI Advisor',
       '✗ Multi-device access',
     ],
   },
@@ -41,7 +45,6 @@ const PLANS = [
       '✓ Data backup',
       '✓ Customers & credit tracking',
       '✓ Quality management modules',
-      '✗ AI Advisor',
     ],
   },
   {
@@ -52,10 +55,9 @@ const PLANS = [
     badge: 'BEST VALUE',
     features: [
       '✓ Everything in Cloud',
-      '✓ AI Advisor (powered by Claude)',
-      '✓ AI-generated business insights',
-      '✓ Sales forecasting',
+      '✓ Advanced exports and workflows',
       '✓ Priority support',
+      '✓ Sales forecasting',
       '✓ Export to PDF/Excel',
     ],
   },
@@ -73,7 +75,7 @@ export default function UpgradeScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={[styles.intro, { color: colors.textSecondary }]}>
-          Start free, upgrade anytime. All plans include offline-first local storage.
+          Start free, upgrade anytime. AI is included locally for everyone. Cloud features stay optional.
         </Text>
 
         {PLANS.map(plan => (

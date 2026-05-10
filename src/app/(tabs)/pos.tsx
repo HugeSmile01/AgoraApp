@@ -11,21 +11,25 @@
  *   - CSS classes → StyleSheet
  */
 
+import { Colors } from '@/constants/theme';
+import { useTier } from '@/hooks/useTier';
+import { getBusinessType } from '@/lib/constants';
+import {
+    addToSyncQueue, getAllProducts, getProfile,
+    saveProduct, saveTransaction,
+} from '@/lib/db';
+import { createId } from '@/lib/id';
+import { storage } from '@/lib/storage';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  ScrollView, StyleSheet, Alert, Modal, useColorScheme,
+    FlatList,
+    Modal,
+    ScrollView, StyleSheet,
+    Text, TextInput, TouchableOpacity,
+    useColorScheme,
+    View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { v4 as uuidv4 } from 'uuid';
-import {
-  addToSyncQueue, getAllProducts, getProfile,
-  saveProduct, saveTransaction,
-} from '@/lib/db';
-import { getBusinessType } from '@/lib/constants';
-import { useTier } from '@/hooks/useTier';
-import { storage } from '@/lib/storage';
-import { Colors } from '@/constants/theme';
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
@@ -102,7 +106,7 @@ export default function POSScreen() {
 
     const resolvedCustomer = paymentMode === 'credit' ? customerName.trim() : '';
     const tx = {
-      id: uuidv4(),
+      id: createId(),
       type: 'sale',
       date: new Date().toISOString().split('T')[0],
       description: paymentMode === 'credit'

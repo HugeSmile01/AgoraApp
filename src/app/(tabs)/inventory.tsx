@@ -3,16 +3,22 @@
  * Mobile port of InventoryPage.jsx
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { Colors } from '@/constants/theme';
+import { useTier } from '@/hooks/useTier';
+import { addToSyncQueue, deleteProduct, getAllProducts, saveProduct } from '@/lib/db';
+import { createId } from '@/lib/id';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  Modal, StyleSheet, Alert, useColorScheme, ScrollView,
+    Alert,
+    FlatList,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text, TextInput, TouchableOpacity,
+    useColorScheme,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { v4 as uuidv4 } from 'uuid';
-import { getAllProducts, saveProduct, deleteProduct, addToSyncQueue } from '@/lib/db';
-import { useTier } from '@/hooks/useTier';
-import { Colors } from '@/constants/theme';
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
@@ -61,7 +67,7 @@ export default function InventoryScreen() {
     if (!form.name?.trim()) { Alert.alert('Required', 'Product name is required.'); return; }
     const record = {
       ...form,
-      id: editingProduct?.id ?? uuidv4(),
+      id: editingProduct?.id ?? createId(),
       price: Number(form.price) || 0,
       cost_price: Number(form.cost_price) || 0,
       stock: Number(form.stock) || 0,

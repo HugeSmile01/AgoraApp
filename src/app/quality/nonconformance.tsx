@@ -3,15 +3,21 @@
  * Simplified mobile port of NonConformancePage.jsx
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import { Colors } from '@/constants/theme';
+import { deleteNonConformance, getAllNonConformances, saveNonConformance } from '@/lib/db';
+import { createId } from '@/lib/id';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, FlatList, Modal,
-  TextInput, ScrollView, StyleSheet, Alert, useColorScheme,
+    Alert,
+    FlatList, Modal,
+    ScrollView, StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useColorScheme,
+    View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { v4 as uuidv4 } from 'uuid';
-import { getAllNonConformances, saveNonConformance, deleteNonConformance } from '@/lib/db';
-import { Colors } from '@/constants/theme';
 
 const SEVERITY = ['low', 'medium', 'high', 'critical'] as const;
 const STATUS = ['open', 'in_progress', 'resolved', 'closed'] as const;
@@ -45,7 +51,7 @@ export default function NonConformanceScreen() {
 
   async function save() {
     if (!form.title?.trim()) { Alert.alert('Required', 'Title is required.'); return; }
-    const record = { ...form, id: editing?.id ?? uuidv4(), created_at: editing?.created_at ?? new Date().toISOString(), updated_at: new Date().toISOString() };
+    const record = { ...form, id: editing?.id ?? createId(), created_at: editing?.created_at ?? new Date().toISOString(), updated_at: new Date().toISOString() };
     await saveNonConformance(record);
     setModalVisible(false);
     load();
