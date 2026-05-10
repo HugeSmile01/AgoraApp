@@ -149,7 +149,7 @@ export default function POSScreen() {
     <Modal visible={receiptVisible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={[styles.receiptRoot, { backgroundColor: colors.background }]}>
         <ScrollView contentContainerStyle={{ padding: 24 }}>
-          <Text style={[styles.receiptTitle, { color: colors.text }]}>✅ Sale Complete</Text>
+          <Text style={[styles.receiptTitle, { color: colors.text }]}>Sale Complete</Text>
           {lastReceipt?.items.map((item: CartItem) => (
             <View key={item.id} style={styles.receiptRow}>
               <Text style={[styles.receiptItem, { color: colors.text }]}>
