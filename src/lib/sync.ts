@@ -19,12 +19,14 @@ import {
   saveRiskRegisterItem, saveFMEAEntry,
   saveTrainingRoleRequirement, saveTrainingCompetencyRecord, saveProfile,
 } from './db';
+import { runReliable } from './reliability';
 
 const MAX_ATTEMPTS = 5;
 
 export async function runSyncQueue() {
   if (!isSupabaseConfigured() || !supabase) return { pushed: 0, failed: 0 };
-  const { data: { session } } = await supabase.auth.getSession();
+  const sb = supabase!;
+  const { data: { session } } = await sb.auth.getSession();
   if (!session) return { pushed: 0, failed: 0 };
 
   const queue = await getSyncQueue();
@@ -35,13 +37,21 @@ export async function runSyncQueue() {
     try {
       switch (item.operation) {
         case 'upsert': {
-          const { error } = await supabase.from(item.table_name).upsert(item.payload);
-          if (error) throw error;
+          const upsertRes = await runReliable(`sync_upsert_${item.table_name}`, async () => {
+            const { error } = await sb.from(item.table_name).upsert(item.payload);
+            if (error) throw error;
+            return true;
+          }, { timeoutMs: 6000, retries: 2, source: 'cloud' });
+          if (!upsertRes.ok) throw upsertRes.error;
           break;
         }
         case 'delete': {
-          const { error } = await supabase.from(item.table_name).delete().eq('id', item.record_id);
-          if (error) throw error;
+          const delRes = await runReliable(`sync_delete_${item.table_name}`, async () => {
+            const { error } = await sb.from(item.table_name).delete().eq('id', item.record_id);
+            if (error) throw error;
+            return true;
+          }, { timeoutMs: 6000, retries: 2, source: 'cloud' });
+          if (!delRes.ok) throw delRes.error;
           break;
         }
         default:
@@ -61,7 +71,8 @@ export async function runSyncQueue() {
 
 export async function pullFromCloud(_userId: string | null) {
   if (!isSupabaseConfigured() || !supabase) return;
-  const { data: { session } } = await supabase.auth.getSession();
+  const sb = supabase!;
+  const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
 
   const userId = _userId ?? session.user.id;
@@ -94,7 +105,7 @@ export async function pullFromCloud(_userId: string | null) {
 
   for (const [table, saveFn] of tables) {
     try {
-      const { data } = await supabase.from(table).select('*').eq('user_id', userId);
+      const { data } = await sb.from(table).select('*').eq('user_id', userId);
       if (data) {
         for (const row of data) await saveFn(row);
       }

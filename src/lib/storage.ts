@@ -60,6 +60,11 @@ async function recordKey(storeName: string, id: string) {
   return `agora_store_${storeName}_${id}`;
 }
 
+
+async function snapshotKey(storeName: string) {
+  return `agora_store_${storeName}__last_good`;
+}
+
 async function getIndex(storeName: string): Promise<string[]> {
   const raw = await AsyncStorage.getItem(await indexKey(storeName));
   return raw ? JSON.parse(raw) : [];
@@ -113,6 +118,30 @@ export const db = {
 
   async count(storeName: string): Promise<number> {
     return (await getIndex(storeName)).length;
+  },
+
+
+
+  async atomicPut(storeName: string, record: any, critical = false): Promise<void> {
+    if (!critical) return db.put(storeName, record);
+    const id = String(record.id ?? record.key);
+    const key = await recordKey(storeName, id);
+    const prev = await AsyncStorage.getItem(key);
+    try {
+      await db.put(storeName, record);
+      await AsyncStorage.setItem(await snapshotKey(storeName), JSON.stringify({ id, record }));
+    } catch (e) {
+      if (prev) await AsyncStorage.setItem(key, prev);
+      throw e;
+    }
+  },
+
+  async recoverLastGood(storeName: string): Promise<boolean> {
+    const raw = await AsyncStorage.getItem(await snapshotKey(storeName));
+    if (!raw) return false;
+    const snap = JSON.parse(raw);
+    await db.put(storeName, snap.record);
+    return true;
   },
 
   async getAllByIndex(storeName: string, indexName: string, value: any): Promise<any[]> {

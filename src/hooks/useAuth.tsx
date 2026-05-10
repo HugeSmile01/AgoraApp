@@ -19,6 +19,8 @@ interface User {
   tier?: string;
 }
 
+type AuthMode = 'libre_local' | 'cloud_authenticated' | 'signed_out';
+
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
@@ -27,6 +29,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   activateOfflineMode: () => Promise<void>;
+  authMode: AuthMode;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -44,11 +47,13 @@ async function createLocalUser(): Promise<User> {
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<AuthMode>('signed_out');
 
   useEffect(() => {
     if (isSupabaseConfigured() && supabase) {
       supabase.auth.getSession().then(async ({ data: { session } }) => {
         setUser(session?.user ?? null);
+        setAuthMode(session?.user ? 'cloud_authenticated' : 'signed_out');
         if (session) {
           try {
             const localProfile = await getProfile();
@@ -63,13 +68,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
         setUser(session?.user ?? null);
+        setAuthMode(session?.user ? 'cloud_authenticated' : 'signed_out');
       });
 
       return () => subscription.unsubscribe();
     } else {
       // Offline / Libre mode
-      storage.getItem(LOCAL_USER_KEY).then(raw => {
-        if (raw) setUser(JSON.parse(raw));
+      storage.getItem(LOCAL_USER_KEY).then(async raw => {
+        if (raw) {
+          setUser(JSON.parse(raw));
+          setAuthMode('libre_local');
+        } else {
+          const localUser = await createLocalUser();
+          setUser(localUser);
+          setAuthMode('libre_local');
+        }
         setLoading(false);
       });
     }
@@ -102,15 +115,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (isSupabaseConfigured() && supabase) await supabase.auth.signOut();
     await storage.removeItem(LOCAL_USER_KEY);
     setUser(null);
+    setAuthMode('signed_out');
   }
 
   async function activateOfflineMode() {
     const localUser = await createLocalUser();
     setUser(localUser);
+    setAuthMode('libre_local');
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, signOut, activateOfflineMode }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, signOut, activateOfflineMode, authMode }}>
       {children}
     </AuthContext.Provider>
   );
