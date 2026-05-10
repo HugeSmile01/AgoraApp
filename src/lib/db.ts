@@ -71,7 +71,7 @@ export async function getProductById(id: string) {
 
 export async function saveProduct(product: any) {
   const record = { ...product, id: product.id ?? newId(), updated_at: now() };
-  await store.put(STORES.PRODUCTS, record);
+  await store.atomicPut(STORES.PRODUCTS, record, true);
   return record;
 }
 
@@ -86,7 +86,7 @@ export async function getAllTransactions() {
 
 export async function saveTransaction(tx: any) {
   const record = { ...tx, id: tx.id ?? newId(), updated_at: now() };
-  await store.put(STORES.TRANSACTIONS, record);
+  await store.atomicPut(STORES.TRANSACTIONS, record, true);
   return record;
 }
 
@@ -101,7 +101,7 @@ export async function getAllExpenses() {
 
 export async function saveExpense(expense: any) {
   const record = { ...expense, id: expense.id ?? newId(), updated_at: now() };
-  await store.put(STORES.EXPENSES, record);
+  await store.atomicPut(STORES.EXPENSES, record, true);
   return record;
 }
 
@@ -354,4 +354,14 @@ export async function saveWorkflow(wf: any) {
   const record = { ...wf, id: wf.id ?? newId(), updated_at: now() };
   await store.put(STORES.WORKFLOWS, record);
   return record;
+}
+
+
+export async function recoverCriticalData() {
+  const results = await Promise.all([
+    store.recoverLastGood(STORES.PRODUCTS),
+    store.recoverLastGood(STORES.TRANSACTIONS),
+    store.recoverLastGood(STORES.EXPENSES),
+  ]);
+  return results.some(Boolean);
 }

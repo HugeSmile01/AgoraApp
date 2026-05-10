@@ -9,6 +9,7 @@
 import { createId } from '@/lib/id';
 import { BUSINESS_TYPES } from './constants';
 import { clearAIHistory, getAIHistory, saveAIMessage } from './db';
+import { runReliable } from './reliability';
 
 function formatCurrency(amount) {
   return new Intl.NumberFormat('en-PH', {
@@ -103,6 +104,19 @@ function detectIntent(message) {
   return 'general';
 }
 
+
+
+function sanitizeInput(message) {
+  return String(message || '').replace(/[<>`]/g, '').slice(0, 500);
+}
+
+function constrainOutput(text) {
+  const safe = String(text || '').replace(/guarantee|certain|always profitable/gi, 'likely');
+  return `${safe}
+
+Safety note: This is operational guidance, not a guaranteed outcome.`;
+}
+
 function buildSystemPrompt(profile, financialSummary) {
   const biz = BUSINESS_TYPES[profile.business_type];
   return `You are Agora AI, a friendly and practical business advisor for ${profile.business_name}, 
@@ -127,10 +141,11 @@ Always end responses with one specific actionable tip the owner can do TODAY.`;
  * Send a message to the AI and return the assistant's reply.
  * Generates a free local response from the app's own financial data.
  */
-export async function sendAIMessage(userMessage, profile, financialSummary) {
+export async function sendAIMessage(userMessage, profile, financialSummary, options = { cloudAssist: false, offline: false }) {
+  const sanitizedMessage = sanitizeInput(userMessage);
   const history = await getAIHistory();
   const signals = getPerformanceSignals(financialSummary);
-  const intent = detectIntent(userMessage);
+  const intent = detectIntent(sanitizedMessage);
   const businessLabel = getBusinessLabel(profile);
   const recentContext = history
     .filter((item) => item?.role === 'assistant')
@@ -161,7 +176,9 @@ export async function sendAIMessage(userMessage, profile, financialSummary) {
     general: 'I am using your latest business data to keep the advice practical and local.',
   };
 
+  const sourceLabel = options.cloudAssist && !options.offline ? 'Cloud-assisted' : 'Local-only';
   const reply = [
+    `Source of advice: ${sourceLabel}.`,
     `Here is a simple update for ${businessLabel}.`,
     summaryLine,
     statusLine,
@@ -173,10 +190,12 @@ export async function sendAIMessage(userMessage, profile, financialSummary) {
   ].filter(Boolean).join('\n\n');
 
   // Persist conversation to local IndexedDB history
-  await saveAIMessage({ id: createId(), role: 'user',      content: userMessage, created_at: new Date().toISOString() });
-  await saveAIMessage({ id: createId(), role: 'assistant', content: reply,       created_at: new Date().toISOString() });
+  await saveAIMessage({ id: createId(), role: 'user',      content: sanitizedMessage, created_at: new Date().toISOString() });
+  const constrained = constrainOutput(reply);
+  await saveAIMessage({ id: createId(), role: 'assistant', content: constrained,       created_at: new Date().toISOString() });
 
-  return reply;
+  const localResult = await runReliable('local_ai_reply', async () => constrained, { timeoutMs: 1200, retries: 0, offline: options.offline, fallback: () => constrained, source: 'local' });
+  return localResult.data || constrained;
 }
 
 export async function getInsightTeaser(financialSummary) {
