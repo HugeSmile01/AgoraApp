@@ -4,6 +4,7 @@
  */
 
 import { Colors } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 import { getFinancialSummary } from '@/lib/financials';
 import { clearAIHistory, getAIHistory } from '@/lib/db';
 import { sendAIMessage } from '@/lib/ai';
@@ -130,7 +131,7 @@ export default function AIAdvisorScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: 8 }}
           ListEmptyComponent={
             <View style={styles.starterWrap}>
-              <Text style={styles.starterEmoji}>💡</Text>
+              <Ionicons name="bulb-outline" size={36} color={colors.textSecondary} style={styles.starterEmoji} />
               <Text style={[styles.starterTitle, { color: colors.text }]}>Ask me anything about your business</Text>
               {STARTERS.map(s => (
                 <TouchableOpacity
@@ -181,7 +182,7 @@ export default function AIAdvisorScreen() {
             onPress={sendMessage}
             disabled={!input.trim() || loading}
           >
-            <Text style={styles.sendBtnText}>↑</Text>
+            <Ionicons name="arrow-up" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

@@ -19,6 +19,7 @@ import { getFinancialSummary } from '@/lib/financials';
 import { useTier } from '@/hooks/useTier';
 import { checkAndNotifyLowStock, sendDailySummaryNotification } from '@/lib/notifications';
 import { Colors } from '@/constants/theme';
+import { Ionicons } from '@expo/vector-icons';
 
 interface Summary {
   monthSales: number;
@@ -99,10 +100,10 @@ export default function DashboardScreen() {
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
   const STATS = summary ? [
-    { key: 'monthSales',        label: 'Total Sales',    icon: '💰', accent: '#1A56A0', profit: false },
-    { key: 'monthExpenses',     label: 'Total Expenses', icon: '📋', accent: '#D97706', profit: false },
-    { key: 'grossProfit',       label: 'Gross Profit',   icon: '📈', accent: '#0D9488', profit: true  },
-    { key: 'totalTransactions', label: 'Transactions',   icon: '🧾', accent: '#7C3AED', profit: false },
+    { key: 'monthSales',        label: 'Total Sales',    icon: 'cash-outline', accent: '#1A56A0', profit: false },
+    { key: 'monthExpenses',     label: 'Total Expenses', icon: 'receipt-outline', accent: '#D97706', profit: false },
+    { key: 'grossProfit',       label: 'Gross Profit',   icon: 'trending-up-outline', accent: '#0D9488', profit: true  },
+    { key: 'totalTransactions', label: 'Transactions',   icon: 'document-text-outline', accent: '#7C3AED', profit: false },
   ] : [];
 
   return (
@@ -136,7 +137,7 @@ export default function DashboardScreen() {
           <View style={styles.statGrid}>
             {STATS.map(s => (
               <View key={s.key} style={[styles.statCard, { backgroundColor: colors.backgroundElement }]}>
-                <Text style={styles.statIcon}>{s.icon}</Text>
+                <Ionicons name={s.icon as any} size={20} color={colors.textSecondary} style={styles.statIcon} />
                 <Text style={[styles.statValue, { color: colors.text }]}>
                   {s.key === 'totalTransactions'
                     ? (summary as any)[s.key]
@@ -151,7 +152,7 @@ export default function DashboardScreen() {
         {/* Low stock alert */}
         {lowStock.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>⚠️ Low Stock</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}><Ionicons name="alert-circle-outline" size={16} color={colors.text} /> Low Stock</Text>
             {lowStock.map(p => (
               <TouchableOpacity
                 key={p.id}

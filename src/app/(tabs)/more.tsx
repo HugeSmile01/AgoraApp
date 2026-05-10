@@ -19,12 +19,13 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 interface NavItem {
   label: string;
   description: string;
   route: string;
-  emoji: string;
+  icon: string;
   color: string;
   proOnly?: boolean;
 }
@@ -33,22 +34,22 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: 'Business',
     items: [
-      { label: 'Reports', description: 'Sales & profit reports', route: '/reports', emoji: '📊', color: '#7C3AED' },
-      { label: 'Customers / Utang', description: 'Customer accounts & credit', route: '/customers', emoji: '👥', color: '#0D9488' },
-      { label: 'AI Advisor', description: 'Free local business insights', route: '/ai', emoji: '🤖', color: '#1A56A0' },
+      { label: 'Reports', description: 'Sales & profit reports', route: '/reports', icon: 'bar-chart-outline', color: '#7C3AED' },
+      { label: 'Customers / Utang', description: 'Customer accounts & credit', route: '/customers', icon: 'people-outline', color: '#0D9488' },
+      { label: 'AI Advisor', description: 'Free local business insights', route: '/ai', icon: 'sparkles-outline', color: '#1A56A0' },
     ],
   },
   {
     title: 'Quality & Operations',
     items: [
-      { label: 'Quality', description: 'SOPs, audits, non-conformances', route: '/quality', emoji: '🛡️', color: '#0D9488' },
+      { label: 'Quality', description: 'SOPs, audits, non-conformances', route: '/quality', icon: 'shield-checkmark-outline', color: '#0D9488' },
     ],
   },
   {
     title: 'Account',
     items: [
-      { label: 'Settings', description: 'Profile & app settings', route: '/settings', emoji: '⚙️', color: '#6B7280' },
-      { label: 'Upgrade Plan', description: 'Cloud sync & AI features', route: '/upgrade', emoji: '⭐', color: '#D97706' },
+      { label: 'Settings', description: 'Profile & app settings', route: '/settings', icon: 'settings-outline', color: '#6B7280' },
+      { label: 'Upgrade Plan', description: 'Cloud sync & AI features', route: '/upgrade', icon: 'diamond-outline', color: '#D97706' },
     ],
   },
 ];
@@ -103,7 +104,7 @@ export default function MoreScreen() {
                 onPress={() => router.push(item.route as any)}
               >
                 <View style={[styles.navIcon, { backgroundColor: item.color + '20' }]}>
-                  <Text style={styles.navEmoji}>{item.emoji}</Text>
+                  <Ionicons name={item.icon as any} size={20} color={item.color} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.navLabelRow}>
@@ -113,7 +114,7 @@ export default function MoreScreen() {
                     {item.description}
                   </Text>
                 </View>
-                <Text style={{ color: colors.textSecondary, fontSize: 18 }}>›</Text>
+                <Ionicons name="chevron-forward" size={18} color={colors.textSecondary} />
               </TouchableOpacity>
             ))}
           </View>
@@ -150,7 +151,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, borderRadius: 12, padding: 14, marginBottom: 6,
   },
   navIcon: { width: 44, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  navEmoji: { fontSize: 22 },
   navLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   navLabel: { fontSize: 15, fontWeight: '600' },
   navDesc: { fontSize: 12 },
