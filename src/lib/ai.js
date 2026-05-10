@@ -106,6 +106,28 @@ function detectIntent(message) {
 
 
 
+
+function inferWorkflowContext(message) {
+  const text = normalizeText(message);
+  if (/(login|auth|account|session)/.test(text)) return 'auth';
+  if (/(offline|libre|local|sync|cloud)/.test(text)) return 'offline';
+  if (/(dashboard|summary|kpi|report)/.test(text)) return 'insights';
+  if (/(invoice|payment|collect|utang)/.test(text)) return 'collections';
+  return 'general';
+}
+
+function buildWorkflowCue(workflow, intent) {
+  const cues = {
+    auth: 'Workflow cue: keep account access simple and avoid repeated sign-in friction.',
+    offline: 'Workflow cue: continue locally first, then schedule cloud handoff when internet is stable.',
+    insights: 'Workflow cue: prioritize one metric and one action for today to avoid overload.',
+    collections: 'Workflow cue: contact highest-risk unpaid customer before closing hours.',
+    general: 'Workflow cue: convert advice into a single logged task so progress is visible tomorrow.',
+  };
+  if (intent === 'utang') return cues.collections;
+  return cues[workflow] || cues.general;
+}
+
 function sanitizeInput(message) {
   return String(message || '').replace(/[<>`]/g, '').slice(0, 500);
 }
@@ -147,6 +169,7 @@ export async function sendAIMessage(userMessage, profile, financialSummary, opti
   const signals = getPerformanceSignals(financialSummary);
   const intent = detectIntent(sanitizedMessage);
   const businessLabel = getBusinessLabel(profile);
+  const workflow = inferWorkflowContext(sanitizedMessage);
   const recentContext = history
     .filter((item) => item?.role === 'assistant')
     .slice(-1)[0]?.content;
@@ -185,6 +208,7 @@ export async function sendAIMessage(userMessage, profile, financialSummary, opti
     topItemLine,
     expenseLine,
     intentLines[intent],
+    buildWorkflowCue(workflow, intent),
     recentContext ? `Previous note: ${recentContext}` : null,
     buildActionLine(intent, signals, financialSummary),
   ].filter(Boolean).join('\n\n');

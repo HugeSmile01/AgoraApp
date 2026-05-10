@@ -1,11 +1,3 @@
-/**
- * useAuth.tsx — Mobile-compatible auth hook
- *
- * Drop-in replacement for the web version.
- * Uses AsyncStorage instead of localStorage.
- * Supabase session management is identical.
- */
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getProfile } from '@/lib/db';
@@ -20,6 +12,7 @@ interface User {
 }
 
 type AuthMode = 'libre_local' | 'cloud_authenticated' | 'signed_out';
+type LibreLifecycle = 'none' | 'local_seeded' | 'local_regenerated' | 'handoff_pending' | 'handoff_completed';
 
 interface AuthContextValue {
   user: User | null;
@@ -30,30 +23,37 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   activateOfflineMode: () => Promise<void>;
   authMode: AuthMode;
+  libreLifecycle: LibreLifecycle;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-async function createLocalUser(): Promise<User> {
-  let raw = await storage.getItem(LOCAL_USER_KEY);
-  if (!raw) {
-    const newUser: User = { id: 'local_' + Date.now(), email: 'local@agora.app', tier: 'libre' };
-    raw = JSON.stringify(newUser);
-    await storage.setItem(LOCAL_USER_KEY, raw);
-  }
-  return JSON.parse(raw);
-}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [authMode, setAuthMode] = useState<AuthMode>('signed_out');
+  const [libreLifecycle, setLibreLifecycle] = useState<LibreLifecycle>('none');
+
+  async function ensureLibreSession(forceRegenerate = false): Promise<User> {
+    const raw = forceRegenerate ? null : await storage.getItem(LOCAL_USER_KEY);
+    if (raw) {
+      setLibreLifecycle('local_seeded');
+      return JSON.parse(raw);
+    }
+
+    const seeded: User = { id: `local_${Date.now()}`, email: 'local@agora.app', tier: 'libre' };
+    await storage.setItem(LOCAL_USER_KEY, JSON.stringify(seeded));
+    setLibreLifecycle(forceRegenerate ? 'local_regenerated' : 'local_seeded');
+    return seeded;
+  }
 
   useEffect(() => {
     if (isSupabaseConfigured() && supabase) {
       supabase.auth.getSession().then(async ({ data: { session } }) => {
         setUser(session?.user ?? null);
         setAuthMode(session?.user ? 'cloud_authenticated' : 'signed_out');
+        setLibreLifecycle(session?.user ? 'handoff_completed' : 'none');
+
         if (session) {
           try {
             const localProfile = await getProfile();
@@ -61,7 +61,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               const { pullFromCloud } = await import('@/lib/sync');
               await pullFromCloud(null);
             }
-          } catch { /* non-fatal */ }
+          } catch {
+            // non-fatal
+          }
         }
         setLoading(false);
       }).catch(() => setLoading(false));
@@ -69,23 +71,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
         setUser(session?.user ?? null);
         setAuthMode(session?.user ? 'cloud_authenticated' : 'signed_out');
+        setLibreLifecycle(session?.user ? 'handoff_completed' : 'none');
       });
 
       return () => subscription.unsubscribe();
-    } else {
-      // Offline / Libre mode
-      storage.getItem(LOCAL_USER_KEY).then(async raw => {
-        if (raw) {
-          setUser(JSON.parse(raw));
-          setAuthMode('libre_local');
-        } else {
-          const localUser = await createLocalUser();
-          setUser(localUser);
-          setAuthMode('libre_local');
-        }
-        setLoading(false);
-      });
     }
+
+    ensureLibreSession(false).then(localUser => {
+      setUser(localUser);
+      setAuthMode('libre_local');
+      setLoading(false);
+    });
   }, []);
 
   async function signUp(email: string, password: string, captchaToken?: string) {
@@ -99,14 +95,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   async function signIn(email: string, password: string, captchaToken?: string) {
     if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
     const options = captchaToken ? { captchaToken } : undefined;
+    setLibreLifecycle('handoff_pending');
     const { data, error } = await supabase.auth.signInWithPassword({ email, password, options });
     if (error) throw error;
+    setLibreLifecycle('handoff_completed');
     return data;
   }
 
   async function signInWithGoogle() {
     if (!isSupabaseConfigured() || !supabase) throw new Error('Supabase not configured');
-    // On native, use expo-web-browser OAuth flow
+    setLibreLifecycle('handoff_pending');
     const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
     if (error) throw error;
   }
@@ -116,16 +114,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await storage.removeItem(LOCAL_USER_KEY);
     setUser(null);
     setAuthMode('signed_out');
+    setLibreLifecycle('none');
   }
 
   async function activateOfflineMode() {
-    const localUser = await createLocalUser();
+    const localUser = await ensureLibreSession(true);
     setUser(localUser);
     setAuthMode('libre_local');
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, signOut, activateOfflineMode, authMode }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInWithGoogle, signOut, activateOfflineMode, authMode, libreLifecycle }}>
       {children}
     </AuthContext.Provider>
   );
