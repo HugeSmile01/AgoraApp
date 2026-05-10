@@ -30,6 +30,15 @@ interface Summary {
   salesByDay?: { date: string; amount: number }[];
 }
 
+interface BusinessInsights {
+  todaySales: number;
+  todayExpenses: number;
+  todayTransactions: number;
+  averageTicket: number;
+  salesTarget: number;
+  targetProgress: number;
+}
+
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(v);
 }
@@ -53,6 +62,7 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [insights, setInsights] = useState<BusinessInsights | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -81,6 +91,20 @@ export default function DashboardScreen() {
       checkAndNotifyLowStock(products);
       const todayTxs = sorted.filter(t => (t.date || '').startsWith(today));
       const todaySales = todayTxs.reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
+      const todayExpenses = (txs as any[])
+        .filter(t => t.type === 'expense' && (t.date || '').startsWith(today))
+        .reduce((s, t) => s + Number(t.amount ?? 0), 0);
+      const salesTarget = Math.max(5000, Math.round((data.monthSales || 0) / Math.max(1, new Date().getDate())) * 1.15);
+      const targetProgress = Math.min(100, (todaySales / salesTarget) * 100);
+      const avgTicket = todayTxs.length ? todaySales / todayTxs.length : 0;
+      setInsights({
+        todaySales,
+        todayExpenses,
+        todayTransactions: todayTxs.length,
+        averageTicket: avgTicket,
+        salesTarget,
+        targetProgress,
+      });
       if (todayTxs.length > 0) sendDailySummaryNotification(todaySales, todayTxs.length);
       setLastUpdated(new Date());
     } catch (err: any) {
@@ -153,6 +177,38 @@ export default function DashboardScreen() {
                 <Text style={[styles.statLabel, { color: colors.textSecondary }]}>{s.label}</Text>
               </View>
             ))}
+          </View>
+        )}
+
+        {insights && (
+          <View style={[styles.heroCard, { backgroundColor: colors.backgroundElement }]}>
+            <View style={styles.heroTop}>
+              <View>
+                <Text style={[styles.heroLabel, { color: colors.textSecondary }]}>Today&apos;s Sales</Text>
+                <Text style={[styles.heroValue, { color: colors.text }]}>{formatCurrency(insights.todaySales)}</Text>
+              </View>
+              <View style={styles.heroPill}>
+                <Ionicons name="trending-up-outline" size={14} color="#93C5FD" />
+                <Text style={styles.heroPillText}>{insights.targetProgress.toFixed(0)}% target</Text>
+              </View>
+            </View>
+            <View style={styles.progressRail}>
+              <View style={[styles.progressFill, { width: `${insights.targetProgress}%` }]} />
+            </View>
+            <View style={styles.heroStats}>
+              <View style={styles.heroStatItem}>
+                <Text style={[styles.heroStatLabel, { color: colors.textSecondary }]}>Avg Ticket</Text>
+                <Text style={[styles.heroStatValue, { color: colors.text }]}>{formatCurrency(insights.averageTicket)}</Text>
+              </View>
+              <View style={styles.heroStatItem}>
+                <Text style={[styles.heroStatLabel, { color: colors.textSecondary }]}>Expenses</Text>
+                <Text style={[styles.heroStatValue, { color: colors.text }]}>{formatCurrency(insights.todayExpenses)}</Text>
+              </View>
+              <View style={styles.heroStatItem}>
+                <Text style={[styles.heroStatLabel, { color: colors.textSecondary }]}>Transactions</Text>
+                <Text style={[styles.heroStatValue, { color: colors.text }]}>{insights.todayTransactions}</Text>
+              </View>
+            </View>
           </View>
         )}
 
@@ -267,4 +323,30 @@ const styles = StyleSheet.create({
     flex: 1, minWidth: '45%', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6,
   },
   quickBtnText: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  heroCard: {
+    borderRadius: 18,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(59,130,246,0.22)',
+  },
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  heroLabel: { fontSize: 13, fontWeight: '600' },
+  heroValue: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  heroPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#1E3A8A',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  heroPillText: { color: '#DBEAFE', fontSize: 11, fontWeight: '700' },
+  progressRail: { height: 8, borderRadius: 999, backgroundColor: '#1F2937', overflow: 'hidden', marginBottom: 12 },
+  progressFill: { height: '100%', backgroundColor: '#60A5FA', borderRadius: 999 },
+  heroStats: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  heroStatItem: { flex: 1 },
+  heroStatLabel: { fontSize: 12, marginBottom: 4 },
+  heroStatValue: { fontSize: 15, fontWeight: '700' },
 });
