@@ -30,6 +30,7 @@ import {
     View
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SymbolView } from 'expo-symbols';
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
@@ -149,7 +150,12 @@ export default function POSScreen() {
     <Modal visible={receiptVisible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={[styles.receiptRoot, { backgroundColor: colors.background }]}>
         <ScrollView contentContainerStyle={{ padding: 24 }}>
-          <Text style={[styles.receiptTitle, { color: colors.text }]}>✅ Sale Complete</Text>
+          <View style={styles.receiptHeader}>
+            <View style={styles.receiptIconWrap}>
+              <SymbolView name="checkmark.circle.fill" tintColor="#10B981" size={22} />
+            </View>
+            <Text style={[styles.receiptTitle, { color: colors.text }]}>Sale Complete</Text>
+          </View>
           {lastReceipt?.items.map((item: CartItem) => (
             <View key={item.id} style={styles.receiptRow}>
               <Text style={[styles.receiptItem, { color: colors.text }]}>
@@ -347,7 +353,16 @@ const styles = StyleSheet.create({
   checkoutBtn: { backgroundColor: '#1A56A0', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   checkoutBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
   receiptRoot: { flex: 1 },
-  receiptTitle: { fontSize: 22, fontWeight: '700', marginBottom: 20 },
+  receiptHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 20 },
+  receiptIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#D1FAE5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptTitle: { fontSize: 22, fontWeight: '700' },
   receiptRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   receiptItem: { fontSize: 14, flex: 1 },
   receiptAmount: { fontSize: 14, fontWeight: '500' },

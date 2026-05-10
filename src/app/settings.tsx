@@ -20,9 +20,10 @@ import {
 } from '@/lib/notifications';
 import { BUSINESS_TYPES } from '@/lib/constants';
 import { Colors } from '@/constants/theme';
+import SymbolIcon from '@/components/symbol-icon';
 
 const TYPES = Object.entries(BUSINESS_TYPES as Record<string, any>).map(([key, val]) => ({
-  key, label: val.label, emoji: val.emoji,
+  key, label: val.label, icon: val.icon,
 }));
 
 export default function SettingsScreen() {
@@ -142,7 +143,7 @@ export default function SettingsScreen() {
                 style={[styles.typePill, form.business_type === t.key && styles.typePillActive]}
                 onPress={() => setForm(p => ({ ...p, business_type: t.key }))}
               >
-                <Text>{t.emoji}</Text>
+                <SymbolIcon name={t.icon || 'briefcase.fill'} size={14} color={form.business_type === t.key ? '#fff' : '#9CA3AF'} />
                 <Text style={[styles.typePillText, form.business_type === t.key && { color: '#fff' }]}>
                   {t.label}
                 </Text>
@@ -196,7 +197,7 @@ export default function SettingsScreen() {
               style={[styles.saveBtn, { marginTop: 16, backgroundColor: '#D97706' }]}
               onPress={() => router.push('/upgrade')}
             >
-              <Text style={styles.saveBtnText}>Upgrade Plan ⭐</Text>
+              <Text style={styles.saveBtnText}>Upgrade Plan</Text>
             </TouchableOpacity>
           )}
         </View>

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { Colors } from '@/constants/theme';
 
 const TITLES: Record<string, string> = {
@@ -29,12 +30,12 @@ export default function QualitySubScreen() {
     <SafeAreaView style={[s.root, { backgroundColor: colors.background }]}>
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <Text style={{ color: '#1A56A0', fontSize: 16 }}>‹ Back</Text>
+          <View style={s.backBtnContent}><SymbolView name="chevron.left" tintColor="#1A56A0" size={14} /><Text style={{ color: '#1A56A0', fontSize: 16 }}>Back</Text></View>
         </TouchableOpacity>
         <Text style={[s.title, { color: colors.text }]}>{title}</Text>
       </View>
       <View style={s.body}>
-        <Text style={s.emoji}>🚧</Text>
+        <View style={s.iconWrap}><SymbolView name="wrench.and.screwdriver.fill" tintColor="#1A56A0" size={24} /></View>
         <Text style={[s.heading, { color: colors.text }]}>{title}</Text>
         <Text style={[s.desc, { color: colors.textSecondary }]}>
           This module is being built. It ports the full web {title} page to React Native.
@@ -54,7 +55,8 @@ const s = StyleSheet.create({
   backBtn: { marginBottom: 4 },
   title: { fontSize: 20, fontWeight: '700' },
   body: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emoji: { fontSize: 48, marginBottom: 16 },
+  backBtnContent: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  iconWrap: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   heading: { fontSize: 20, fontWeight: '700', textAlign: 'center', marginBottom: 12 },
   desc: { fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 28 },
   btn: { backgroundColor: '#1A56A0', borderRadius: 12, paddingVertical: 12, paddingHorizontal: 28 },

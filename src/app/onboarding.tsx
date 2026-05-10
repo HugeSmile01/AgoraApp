@@ -14,9 +14,10 @@ import { saveProfile } from '@/lib/db';
 import { BUSINESS_TYPES } from '@/lib/constants';
 import { useAuth } from '@/hooks/useAuth';
 import { Colors } from '@/constants/theme';
+import SymbolIcon from '@/components/symbol-icon';
 
 const TYPES = Object.entries(BUSINESS_TYPES as Record<string, any>).map(([key, val]) => ({
-  key, label: val.label, emoji: val.emoji, color: val.color,
+  key, label: val.label, icon: val.icon, color: val.color,
 }));
 
 export default function OnboardingScreen() {
@@ -105,7 +106,9 @@ export default function OnboardingScreen() {
               ]}
               onPress={() => setBusinessType(t.key)}
             >
-              <Text style={styles.typeEmoji}>{t.emoji}</Text>
+              <View style={[styles.typeIconWrap, { backgroundColor: `${t.color}20` }]}>
+                <SymbolIcon name={t.icon || 'briefcase.fill'} size={20} color={t.color} />
+              </View>
               <Text style={[styles.typeLabel, { color: colors.text }]} numberOfLines={2}>{t.label}</Text>
             </TouchableOpacity>
           ))}
@@ -117,9 +120,9 @@ export default function OnboardingScreen() {
           disabled={loading}
         >
           <Text style={styles.saveBtnText}>
-            {loading ? 'Saving…' : 'Start using Agora →'}
-          </Text>
-        </TouchableOpacity>
+              {loading ? 'Saving…' : 'Start using Agora'}
+            </Text>
+          </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -144,7 +147,14 @@ const styles = StyleSheet.create({
     borderRadius: 12, padding: 14, alignItems: 'center',
     flex: 1, minWidth: '28%', borderWidth: 2,
   },
-  typeEmoji: { fontSize: 28, marginBottom: 6 },
+  typeIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
   typeLabel: { fontSize: 12, textAlign: 'center', fontWeight: '500' },
   saveBtn: { backgroundColor: '#1A56A0', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   saveBtnDisabled: { opacity: 0.6 },
