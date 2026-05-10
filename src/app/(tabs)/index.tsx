@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { getAllProducts, getAllTransactions } from '@/lib/db';
 import { getFinancialSummary } from '@/lib/financials';
 import { useTier } from '@/hooks/useTier';
+import { useNetworkStatus } from '@/hooks/useNetworkStatus';
 import { checkAndNotifyLowStock, sendDailySummaryNotification } from '@/lib/notifications';
 import { Colors } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,21 +34,14 @@ function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(v);
 }
 
-function StatCard({ label, value, icon, accent, profit }: any) {
-  const isNegative = profit && value < 0;
-  return (
-    <View style={[styles.statCard, { borderLeftColor: `var(--${accent}, #1A56A0)` }]}>
-      <Text style={styles.statIcon}>{icon}</Text>
-      <Text style={[styles.statValue, isNegative && styles.statValueNeg]}>
-        {typeof value === 'number' ? formatCurrency(value) : value}
-      </Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
+function formatTimestamp(date: Date | null) {
+  if (!date) return 'Never';
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 export default function DashboardScreen() {
   const { tier } = useTier();
+  const { isOnline } = useNetworkStatus();
   const router = useRouter();
   const scheme = useColorScheme();
   const colors = Colors[scheme ?? 'light'];
@@ -58,6 +52,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -87,6 +82,7 @@ export default function DashboardScreen() {
       const todayTxs = sorted.filter(t => (t.date || '').startsWith(today));
       const todaySales = todayTxs.reduce((s: number, t: any) => s + Number(t.amount ?? 0), 0);
       if (todayTxs.length > 0) sendDailySummaryNotification(todaySales, todayTxs.length);
+      setLastUpdated(new Date());
     } catch (err: any) {
       setError(err.message || 'Could not load dashboard.');
     } finally {
@@ -132,6 +128,16 @@ export default function DashboardScreen() {
             <Text style={styles.errorText}>{error}</Text>
           </View>
         ) : null}
+
+        <View style={[styles.healthCard, { backgroundColor: colors.backgroundElement, borderColor: isOnline ? '#14532D' : '#7F1D1D' }]}>
+          <View style={styles.healthRow}>
+            <Ionicons name={isOnline ? 'cloud-done-outline' : 'cloud-offline-outline'} size={16} color={isOnline ? '#22C55E' : '#F87171'} />
+            <Text style={[styles.healthText, { color: colors.text }]}>
+              {isOnline ? 'Online mode' : 'Offline mode'}
+            </Text>
+          </View>
+          <Text style={[styles.healthMeta, { color: colors.textSecondary }]}>Last refresh: {formatTimestamp(lastUpdated)}</Text>
+        </View>
 
         {/* Stat grid */}
         {summary && (
@@ -228,6 +234,10 @@ const styles = StyleSheet.create({
   loadingCard: { padding: 20, alignItems: 'center' },
   errorCard: { backgroundColor: '#7F1D1D', borderRadius: 10, padding: 14, marginBottom: 16 },
   errorText: { color: '#FCA5A5' },
+  healthCard: { borderRadius: 10, padding: 12, borderWidth: 1, marginBottom: 14 },
+  healthRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 },
+  healthText: { fontSize: 13, fontWeight: '600' },
+  healthMeta: { fontSize: 12 },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   statCard: {
     borderRadius: 18, padding: 16, flex: 1, minWidth: '45%',
