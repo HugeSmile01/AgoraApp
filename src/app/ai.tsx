@@ -9,7 +9,7 @@ import { getFinancialSummary } from '@/lib/financials';
 import { clearAIHistory, getAIHistory } from '@/lib/db';
 import { sendAIMessage } from '@/lib/ai';
 import { createId } from '@/lib/id';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
@@ -100,6 +100,29 @@ export default function AIAdvisorScreen() {
     'How do I manage utang (credit) better?',
   ];
 
+  const suggestedPrompts = useMemo(() => {
+    if (!financialSummary) return STARTERS;
+
+    const prompts = [
+      'Give me 3 actions to improve this week.',
+      'What is my biggest business risk right now?',
+    ];
+
+    if (typeof financialSummary.revenue === 'number' && typeof financialSummary.expenses === 'number') {
+      if (financialSummary.expenses > financialSummary.revenue * 0.7) {
+        prompts.unshift('My expenses look high. How can I cut costs without hurting sales?');
+      } else {
+        prompts.unshift('How can I reinvest profits to grow faster this month?');
+      }
+    }
+
+    if (typeof financialSummary.profit === 'number' && financialSummary.profit < 0) {
+      prompts.unshift('I am losing money this month. What should I fix first?');
+    }
+
+    return prompts.slice(0, 4);
+  }, [financialSummary]);
+
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
@@ -133,7 +156,7 @@ export default function AIAdvisorScreen() {
             <View style={styles.starterWrap}>
               <Ionicons name="bulb-outline" size={36} color={colors.textSecondary} style={styles.starterEmoji} />
               <Text style={[styles.starterTitle, { color: colors.text }]}>Ask me anything about your business</Text>
-              {STARTERS.map(s => (
+              {suggestedPrompts.map(s => (
                 <TouchableOpacity
                   key={s}
                   style={[styles.starterBtn, { backgroundColor: colors.backgroundElement }]}
