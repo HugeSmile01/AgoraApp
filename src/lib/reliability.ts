@@ -19,10 +19,28 @@ export interface ReliabilityResult<T> {
 
 const TELEMETRY_KEY = 'agora_reliability_events';
 
+type ReliabilityEvent = {
+  op: string;
+  type: ErrorType;
+  health: HealthFlag;
+  message: string;
+  ts: string;
+};
+
+function parseTelemetry(raw: string | null): ReliabilityEvent[] {
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function logReliabilityEvent(event: { op: string; type: ErrorType; health: HealthFlag; message: string }) {
-  const safe = { ...event, ts: new Date().toISOString() };
-  const raw = (await storage.getItem(TELEMETRY_KEY)) || '[]';
-  const parsed = JSON.parse(raw);
+  const safe: ReliabilityEvent = { ...event, ts: new Date().toISOString() };
+  const parsed = parseTelemetry(await storage.getItem(TELEMETRY_KEY));
   parsed.push(safe);
   await storage.setItem(TELEMETRY_KEY, JSON.stringify(parsed.slice(-200)));
 }
