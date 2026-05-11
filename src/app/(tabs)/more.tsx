@@ -18,7 +18,7 @@ import {
     useColorScheme,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { MobileScreen } from '@/components/mobile-screen';
 import { Ionicons } from '@expo/vector-icons';
 
 interface NavItem {
@@ -67,17 +67,19 @@ export default function MoreScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]}>More</Text>
-          <View style={[styles.tierBadge, {
-            backgroundColor: tier === 'pro' ? '#7C3AED' : tier === 'cloud' ? '#0D9488' : '#334155',
-          }]}>
-            <Text style={styles.tierText}>{tier.toUpperCase()}</Text>
-          </View>
+    <MobileScreen
+      backgroundColor={colors.background}
+      title="More"
+      titleColor={colors.text}
+      rightSlot={
+        <View style={[styles.tierBadge, {
+          backgroundColor: tier === 'pro' ? '#7C3AED' : tier === 'cloud' ? '#0D9488' : '#334155',
+        }]}>
+          <Text style={styles.tierText}>{tier.toUpperCase()}</Text>
         </View>
+      }
+    >
+      <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
 
         {/* User info */}
         <View style={[styles.userCard, { backgroundColor: colors.backgroundElement }]}>
@@ -128,17 +130,11 @@ export default function MoreScreen() {
           <Text style={{ color: '#9CA3AF', fontWeight: '500' }}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </MobileScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 12,
-  },
-  title: { fontSize: 26, fontWeight: '700' },
   tierBadge: { borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
   tierText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   userCard: { marginHorizontal: 16, borderRadius: 12, padding: 16, marginBottom: 24 },

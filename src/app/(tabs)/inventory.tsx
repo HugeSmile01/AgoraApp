@@ -19,6 +19,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { MobileScreen } from '@/components/mobile-screen';
 
 function formatCurrency(v: number) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(v);
@@ -94,15 +95,13 @@ export default function InventoryScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Inventory</Text>
-        <TouchableOpacity style={styles.addBtn} onPress={openNew}>
-          <Text style={styles.addBtnText}>+ Add</Text>
-        </TouchableOpacity>
-      </View>
-
+    <MobileScreen
+      backgroundColor={colors.background}
+      title="Inventory"
+      titleColor={colors.text}
+      rightActionLabel="+ Add"
+      onRightActionPress={openNew}
+    >
       {/* Search */}
       <View style={[styles.searchWrap, { backgroundColor: colors.backgroundElement }]}>
         <TextInput
@@ -197,16 +196,11 @@ export default function InventoryScreen() {
           </ScrollView>
         </SafeAreaView>
       </Modal>
-    </SafeAreaView>
+    </MobileScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
-  title: { fontSize: 22, fontWeight: '700' },
-  addBtn: { backgroundColor: '#1A56A0', borderRadius: 8, paddingHorizontal: 16, paddingVertical: 8 },
-  addBtnText: { color: '#fff', fontWeight: '600' },
   searchWrap: { marginHorizontal: 16, borderRadius: 10, marginBottom: 8 },
   searchInput: { paddingHorizontal: 14, paddingVertical: 10, fontSize: 15 },
   empty: { textAlign: 'center', marginTop: 40, fontSize: 14 },
